@@ -1,0 +1,14 @@
+/* Keep Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Modified body rule */
+body {
+  margin: 0;
+  /* Remove these if using React layout components: */
+  /* display: flex; */
+  /* place-items: center; */
+  min-width: 320px;
+  min-height: 100vh;
+}
