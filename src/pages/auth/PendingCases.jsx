@@ -268,7 +268,16 @@ const PendingCases = () => {
         .eq("id", caseId);
 
       if (error) throw error;
+      const notification = await supabase.from("notifications").insert([
+        {
+          user_id: user.id, // Ensure user_id is being passed here
+          message: `Case ${caseId} has been approved.`,
+          status: "new",
+          created_at: new Date().toISOString(),
+        },
+      ]);
 
+      if (notification.error) throw notification.error;
       setPendingCases((prev) => prev.filter((c) => c.id !== caseId));
       setSelectedCase(null);
     } catch (err) {
