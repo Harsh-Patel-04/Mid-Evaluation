@@ -26,12 +26,11 @@ Traditional crime reporting systems suffer from delayed updates, lack of transpa
 | Layer        | Technologies                            |
 |--------------|-----------------------------------------|
 | Frontend     | React.js, Tailwind CSS                  |
-| Backend      | Node.js, Express.js                     |
-| Database     | Firebase Firestore (NoSQL, real-time)   |
-| Map API      | Google Maps API / Leaflet.js            |
+| Backend      | Node.js                                 |
+| Database     | Supabase                                |
+| Map API      | Google Maps API                         |
 | Deployment   | Vercel (Frontend), Google Cloud (Backend)|
-| AI Features  | OpenAI, GrokAI APIs                     |
-| Notifications| Firebase Cloud Messaging (FCM)          |
+| Notifications| Supabase Messaging                      |
 
 ## 👥 Target Audience
 
