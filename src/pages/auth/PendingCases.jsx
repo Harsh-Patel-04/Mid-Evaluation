@@ -270,7 +270,7 @@ const PendingCases = () => {
       if (error) throw error;
       const notification = await supabase.from("notifications").insert([
         {
-          user_id: user.id, // Ensure user_id is being passed here
+          user_id: user.id,
           message: `Case ${caseId} has been approved.`,
           status: "new",
           created_at: new Date().toISOString(),

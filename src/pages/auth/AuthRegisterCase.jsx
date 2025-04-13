@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   FiAlertCircle,
   FiCalendar,
@@ -11,8 +13,11 @@ import {
   FiNavigation,
   FiCheck,
   FiAlertTriangle,
+  FiEye,
+  FiEyeOff,
 } from "react-icons/fi";
 import Navbar from "../../components/AuthNavbar";
+import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 
 const formVariants = {
@@ -20,14 +25,14 @@ const formVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export default function AuthRegisterCase() {
+export default function RegisterCase() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [coordinates, setCoordinates] = useState({
-    lat: 22.2587,
-    lng: 71.1924,
-  });
+  const [coordinates, setCoordinates] = useState({ lat: null, lng: null });
   const [address, setAddress] = useState("");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [map, setMap] = useState(null);
@@ -55,6 +60,9 @@ export default function AuthRegisterCase() {
     status: null,
     message: "",
   });
+  const [showBlurOption, setShowBlurOption] = useState(false);
+  const [autoBlurEnabled, setAutoBlurEnabled] = useState(true);
+  const [detectedContent, setDetectedContent] = useState([]);
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -90,6 +98,7 @@ export default function AuthRegisterCase() {
       }
     };
   }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
@@ -137,6 +146,7 @@ export default function AuthRegisterCase() {
       }
     }
   }, []);
+
   useEffect(() => {
     if (mapLoaded && coordinates.lat && coordinates.lng) {
       const mapInstance = new window.google.maps.Map(
@@ -226,43 +236,178 @@ export default function AuthRegisterCase() {
     });
   };
 
-  const uploadFile = async (file) => {
-    if (!file) return null;
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const fileExt = file.name.split(".").pop();
+    setSelectedFile(file);
+    setShowBlurOption(true);
+    setDetectedContent([]);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFilePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const analyzeImageWithSightEngine = async (file, shouldBlur) => {
+    const formData = new FormData();
+    formData.append("media", file);
+    formData.append(
+      "models",
+      "nudity-2.1,weapon,alcohol,recreational_drug,medical,offensive-2.0,gore-2.0,violence,self-harm,gambling"
+    );
+
+    if (shouldBlur) {
+      formData.append("blur", "15");
+      formData.append("blur_types", "all");
+    }
+
+    try {
+      const response = await axios.post(
+        "https://api.sightengine.com/1.0/check.json",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          params: {
+            api_user: "1043833218",
+            api_secret: "CfztvLVuKWqyid9XwGQbAz5yiPdwfbmg",
+          },
+        }
+      );
+
+      const thresholds = {
+        nudity: 0.7,
+        weapon: 0.7,
+        alcohol: 0.8,
+        drugs: 0.8,
+        offensive: 0.7,
+        violence: 0.7,
+        self_harm: 0.9,
+        gambling: 0.8,
+      };
+
+      const flagged = Object.entries(thresholds)
+        .filter(
+          ([category]) =>
+            (response.data[category]?.prob ?? 0) >= thresholds[category]
+        )
+        .map(([category]) => category);
+
+      setDetectedContent(flagged);
+
+      return {
+        success: true,
+        data: response.data,
+        is_detected: flagged.length > 0,
+        flagged_categories: flagged,
+        blurred_image: shouldBlur ? response.data.image?.url : null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  };
+
+  const processImage = async () => {
+    if (!selectedFile) return null;
+
+    const analysisResult = await analyzeImageWithSightEngine(
+      selectedFile,
+      autoBlurEnabled
+    );
+
+    if (!analysisResult.success) {
+      throw new Error(`Image analysis failed: ${analysisResult.error}`);
+    }
+
+    // If we have a blurred image URL from Sightengine, fetch it
+    let fileToUpload = selectedFile;
+    if (analysisResult.blurred_image) {
+      try {
+        const response = await fetch(analysisResult.blurred_image);
+        const blob = await response.blob();
+        fileToUpload = new File([blob], selectedFile.name, {
+          type: selectedFile.type,
+        });
+
+        // Update preview with blurred version
+        const reader = new FileReader();
+        reader.onload = () => {
+          setFilePreview(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error("Error fetching blurred image:", error);
+      }
+    }
+
+    return {
+      file: fileToUpload,
+      analysis: analysisResult.data,
+      is_detected: analysisResult.is_detected,
+      flagged_categories: analysisResult.flagged_categories,
+      is_blurred: autoBlurEnabled && analysisResult.is_detected,
+    };
+  };
+
+  const uploadFile = async () => {
+    const processedImage = await processImage();
+    if (!processedImage) return null;
+
+    const fileExt = processedImage.file.name.split(".").pop();
     const fileName = `${Math.random()
       .toString(36)
       .substring(2, 15)}_${Date.now()}.${fileExt}`;
     const filePath = `evidence/${fileName}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("incident-evidence")
-      .upload(filePath, file);
+      .upload(filePath, processedImage.file);
 
-    if (error) {
-      console.error("Error uploading file:", error);
-      throw new Error(`Error uploading file: ${error.message}`);
-    }
+    if (error) throw error;
 
-    const { data: urlData } = supabase.storage
-      .from("incident-evidence")
-      .getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("incident-evidence").getPublicUrl(filePath);
 
-    return urlData.publicUrl;
+    return {
+      url: publicUrl,
+      analysis: processedImage.analysis,
+      is_detected: processedImage.is_detected,
+      flagged_categories: processedImage.flagged_categories,
+      is_blurred: processedImage.is_blurred,
+    };
   };
 
   const submitToSupabase = async (formData) => {
     try {
       let fileUrl = null;
+      let mediaAnalysis = null;
+      let isDetected = false;
+      let flaggedCategories = [];
+      let isBlurred = false;
+
       if (selectedFile) {
-        fileUrl = await uploadFile(selectedFile);
+        const uploadResult = await uploadFile();
+        fileUrl = uploadResult.url;
+        mediaAnalysis = uploadResult.analysis;
+        isDetected = uploadResult.is_detected;
+        flaggedCategories = uploadResult.flagged_categories || [];
+        isBlurred = uploadResult.is_blurred || false;
       }
 
-      const { data, error } = await supabase
+      const { data: reportData, error: reportError } = await supabase
         .from("reports")
         .insert([
           {
+            user_id: formData.userId,
             crime_type: formData.crimeType.toLowerCase(),
+            isAnonymous: formData.isAnonymous,
             title: formData.title,
             address: formData.address,
             latitude: formData.coordinates.lat,
@@ -272,16 +417,49 @@ export default function AuthRegisterCase() {
             status: "pending",
             reported_at: formData.dateTime,
             updated_at: new Date().toISOString(),
+            media_analysis: mediaAnalysis,
+            is_detected: isDetected,
+            flagged_categories: flaggedCategories,
+            is_blurred: isBlurred,
           },
         ])
         .select();
 
-      if (error) throw error;
+      if (reportError) throw reportError;
 
-      return { success: true, data };
+      if (fileUrl && reportData && reportData.length > 0) {
+        const reportId = reportData[0].id;
+        const fileType = selectedFile.type.split("/")[0];
+
+        const { error: mediaError } = await supabase
+          .from("report_media")
+          .insert([
+            {
+              report_id: reportId,
+              file_url: fileUrl,
+              file_type: fileType,
+              uploaded_at: new Date().toISOString(),
+              analysis_result: mediaAnalysis,
+              is_detected: isDetected,
+              flagged_categories: flaggedCategories,
+              is_blurred: isBlurred,
+            },
+          ]);
+
+        if (mediaError) throw mediaError;
+      }
+
+      return {
+        success: true,
+        data: reportData,
+        message: "Report submitted successfully!",
+      };
     } catch (error) {
       console.error("Error submitting to Supabase:", error);
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message || "Failed to submit report",
+      };
     }
   };
 
@@ -308,6 +486,7 @@ export default function AuthRegisterCase() {
     }
 
     const formData = {
+      userId: user?.id || null,
       isAnonymous,
       crimeType,
       severity,
@@ -335,6 +514,9 @@ export default function AuthRegisterCase() {
           setDescription("");
           setCaseNumber("");
           setSelectedFile(null);
+          setFilePreview(null);
+          setShowBlurOption(false);
+          navigate("/citizen-dashboard");
         }, 3000);
       } else {
         setSubmissionStatus({
@@ -376,7 +558,6 @@ export default function AuthRegisterCase() {
       );
     }
   };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-blue-50">
       <Navbar />
@@ -661,7 +842,8 @@ export default function AuthRegisterCase() {
                       type="file"
                       id="file-upload"
                       className="hidden"
-                      onChange={(e) => setSelectedFile(e.target.files[0])}
+                      onChange={handleFileChange}
+                      accept="image/*,video/*"
                     />
                     <label
                       htmlFor="file-upload"
@@ -676,12 +858,54 @@ export default function AuthRegisterCase() {
                       </span>
                     </label>
                     {selectedFile && (
-                      <span className="block mt-2 text-sm text-gray-600">
-                        Selected file: {selectedFile.name}
-                      </span>
+                      <>
+                        <span className="block mt-2 text-sm text-gray-600">
+                          Selected file: {selectedFile.name}
+                        </span>
+                        {filePreview && (
+                          <div className="relative mt-2">
+                            <img
+                              src={filePreview}
+                              alt="Preview"
+                              className="max-h-64 rounded-lg border border-gray-200"
+                            />
+                            {detectedContent.length > 0 && (
+                              <div className="mt-2 text-sm text-red-600">
+                                Detected content: {detectedContent.join(", ")}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
+
+                {showBlurOption && (
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {autoBlurEnabled ? (
+                        <FiEyeOff className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <FiEye className="w-5 h-5 text-blue-600" />
+                      )}
+                      <span className="font-medium text-gray-700">
+                        {autoBlurEnabled
+                          ? "Sensitive content will be automatically blurred"
+                          : "Sensitive content will remain visible"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAutoBlurEnabled(!autoBlurEnabled)}
+                      className="px-4 py-2 bg-white border border-blue-200 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      {autoBlurEnabled
+                        ? "Disable Auto-Blur"
+                        : "Enable Auto-Blur"}
+                    </button>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

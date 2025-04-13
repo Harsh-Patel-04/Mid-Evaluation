@@ -23,14 +23,14 @@ Traditional crime reporting systems suffer from delayed updates, lack of transpa
 
 ## 🛠️ Tech Stack
 
-| Layer        | Technologies                            |
-|--------------|-----------------------------------------|
-| Frontend     | React.js, Tailwind CSS                  |
-| Backend      | Node.js                                 |
-| Database     | Supabase                                |
-| Map API      | Google Maps API                         |
-| Deployment   | Vercel (Frontend), Google Cloud (Backend)|
-| Notifications| Supabase Messaging                      |
+| Layer         | Technologies                              |
+| ------------- | ----------------------------------------- |
+| Frontend      | React.js, Tailwind CSS                    |
+| Backend       | Node.js                                   |
+| Database      | Supabase                                  |
+| Map API       | Google Maps API                           |
+| Deployment    | Vercel (Frontend), Google Cloud (Backend) |
+| Notifications | Supabase Messaging                        |
 
 ## 👥 Target Audience
 
@@ -70,6 +70,5 @@ Traditional crime reporting systems suffer from delayed updates, lack of transpa
 - Integration with national emergency helplines.
 - Multilingual support and offline reporting.
 - Machine learning models for predictive policing.
-
 
 > 🔔 Stay alert. Stay safe. Empower your community with **CrimeRadar**.
