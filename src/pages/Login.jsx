@@ -15,7 +15,7 @@ export default function Login() {
   const { login } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState("public");
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(""); 
+  const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -29,7 +29,8 @@ export default function Login() {
 
     try {
       await login(email, password);
-      const path = activeTab === "public" ? "/citizen-dashboard" : "/auth-dashboard";
+      const path =
+        activeTab === "public" ? "/citizen-dashboard" : "/auth-dashboard";
       navigate(path);
     } catch (error) {
       console.error("Login failed:", error.message);
@@ -119,7 +120,7 @@ export default function Login() {
             <input
               name="email"
               type="text"
-              placeholder="authority@example.com"
+              placeholder="john.doe@example.com"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
@@ -183,7 +184,6 @@ export default function Login() {
       <Navbar />
       <main className="flex-grow p-8 flex items-center justify-center">
         <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex">
-          
           <div className="hidden md:block flex-1 bg-gradient-to-br from-blue-600 to-blue-500 p-8">
             <div className="h-full flex flex-col justify-center items-center text-white">
               <img
@@ -243,7 +243,11 @@ export default function Login() {
                 </motion.button>
               </div>
 
-              {activeTab === "public" ? <PublicLoginForm /> : <AuthorityLoginForm />}
+              {activeTab === "public" ? (
+                <PublicLoginForm />
+              ) : (
+                <AuthorityLoginForm />
+              )}
 
               <div className="mt-6 text-center">
                 <a

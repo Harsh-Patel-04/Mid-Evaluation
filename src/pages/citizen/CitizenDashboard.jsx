@@ -28,14 +28,31 @@ const containerVariants = {
     transition: { delay: i * 0.2, type: "spring", stiffness: 80 },
   }),
 };
+const colorClasses = {
+  yellow: {
+    bg: "bg-yellow-100",
+    border: "border-yellow-500",
+    text: "text-yellow-600",
+  },
+  red: { bg: "bg-red-100", border: "border-red-500", text: "text-red-600" },
+  blue: { bg: "bg-blue-100", border: "border-blue-500", text: "text-blue-600" },
+  green: {
+    bg: "bg-green-100",
+    border: "border-green-500",
+    text: "text-green-600",
+  },
+  purple: {
+    bg: "bg-purple-100",
+    border: "border-purple-500",
+    text: "text-purple-600",
+  },
+};
 
 export default function Dashboard() {
   const { isLoggedIn } = useAuth();
   const [liveData, setLiveData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const LIBRARIES = ["visualization"];
-  const GOOGLE_MAPS_API_KEY = "AIzaSyAUZwzaEsPjMu4CbgC86Fi-wRE_KyX7-SE";
   const [filters, setFilters] = useState({
     types: [],
     severity: [],
@@ -264,7 +281,6 @@ export default function Dashboard() {
           </motion.div>
         ) : (
           <div className="space-y-8">
-            {/* Filters Section */}
             <motion.section
               initial="hidden"
               animate="visible"
@@ -280,46 +296,53 @@ export default function Dashboard() {
               </div>
               <IncidentMap />
             </motion.section>
-            
+
+            {/* Filters Section */}
             <motion.section
               initial="hidden"
               animate="visible"
               custom={1}
               variants={containerVariants}
-              className="bg-white p-6 rounded-xl shadow-md"
+              className="bg-white p-4 sm:p-6 rounded-xl shadow-md"
             >
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex flex-wrap items-center gap-3 mb-4 sm:mb-6">
                 <FiFilter className="w-6 h-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-gray-800">Filters</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+                  Filters
+                </h2>
                 <button
                   onClick={() =>
                     setFilters({ types: [], severity: [], verifiedOnly: false })
                   }
-                  className="ml-auto text-blue-600 hover:text-blue-700"
+                  className="ml-auto text-blue-600 hover:text-blue-700 text-sm sm:text-base"
                 >
-                  Reset
+                  Reset Filters
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                {incidentTypes.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => toggleFilter("types", type.name)}
-                    className={`flex items-center gap-2 p-3 rounded-lg ${
-                      filters.types.includes(type.name)
-                        ? `bg-${type.color}-100 border-${type.color}`
-                        : "bg-gray-100 border-transparent"
-                    } border-2 transition-all`}
-                  >
-                    <type.icon className={`w-5 h-5 text-${type.color}-600`} />
-                    <span className="font-medium">
-                      {type.name.charAt(0).toUpperCase() + type.name.slice(1)}
-                    </span>
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                {incidentTypes.map((type) => {
+                  const colors = colorClasses[type.color];
+                  return (
+                    <button
+                      key={type.id}
+                      onClick={() => toggleFilter("types", type.name)}
+                      className={`flex items-center gap-2 p-2 sm:p-3 rounded-lg transition-all
+                        ${
+                          filters.types.includes(type.name)
+                            ? `${colors.bg} ${colors.border}`
+                            : "bg-gray-100"
+                        }
+                        border-2`}
+                    >
+                      <type.icon className={`w-5 h-5 ${colors.text}`} />
+                      <span className="font-medium text-sm sm:text-base">
+                        {type.name.charAt(0).toUpperCase() + type.name.slice(1)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-4">
                   <span className="font-medium">Severity:</span>
@@ -338,7 +361,7 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                <label className="flex items-center gap-2 ml-auto">
+                <label className="flex items-center gap-2 cursor-pointer ml-auto">
                   <FiCheckSquare className="w-5 h-5 text-gray-600" />
                   <input
                     type="checkbox"
@@ -349,9 +372,11 @@ export default function Dashboard() {
                         verifiedOnly: e.target.checked,
                       }))
                     }
-                    className="w-4 h-4"
+                    className="w-4 h-4 accent-blue-600"
                   />
-                  <span className="text-gray-700">Verified reports only</span>
+                  <span className="text-gray-700 text-sm sm:text-base">
+                    Verified reports only
+                  </span>
                 </label>
               </div>
             </motion.section>
@@ -454,52 +479,39 @@ export default function Dashboard() {
                 </AnimatePresence>
               </div>
             </motion.section>
+
             {/* Crime Statistics Section */}
             <motion.section
               initial="hidden"
               animate="visible"
               custom={4}
               variants={containerVariants}
-              className="bg-white p-6 rounded-xl shadow-md"
+              className="bg-white p-4 sm:p-6 rounded-xl shadow-md"
             >
               <div className="flex items-center gap-3 mb-6">
                 <FiBarChart2 className="w-6 h-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-gray-800">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
                   Crime Statistics
                 </h2>
               </div>
 
-              <div className="flex gap-4 mb-6">
-                <button
-                  onClick={() => setTimeRange("7days")}
-                  className={`px-4 py-2 rounded-lg ${
-                    timeRange === "7days"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100"
-                  }`}
-                >
-                  Last 7 Days
-                </button>
-                <button
-                  onClick={() => setTimeRange("30days")}
-                  className={`px-4 py-2 rounded-lg ${
-                    timeRange === "30days"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100"
-                  }`}
-                >
-                  Last 30 Days
-                </button>
-                <button
-                  onClick={() => setTimeRange("year")}
-                  className={`px-4 py-2 rounded-lg ${
-                    timeRange === "year"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100"
-                  }`}
-                >
-                  Last Year
-                </button>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {["7days", "30days", "year"].map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base
+                      ${
+                        timeRange === range
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100"
+                      }`}
+                  >
+                    {range === "7days" && "Last 7 Days"}
+                    {range === "30days" && "Last 30 Days"}
+                    {range === "year" && "Last Year"}
+                  </button>
+                ))}
               </div>
 
               {liveData &&

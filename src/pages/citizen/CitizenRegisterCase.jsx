@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import axios from 'axios';
 import {
   FiAlertCircle,
   FiCalendar,
@@ -26,8 +25,8 @@ export default function RegisterCase() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [coordinates, setCoordinates] = useState({
-    lat: null,
-    lng: null,
+    lat: 22.2587,
+    lng: 71.1924,
   });
   const [address, setAddress] = useState("");
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -36,10 +35,11 @@ export default function RegisterCase() {
   const [locationPermissionGranted, setLocationPermissionGranted] =
     useState(false);
   const [crimeType, setCrimeType] = useState("");
+  const [severity, setSeverity] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState(null);
   const [interimTranscript, setInterimTranscript] = useState("");
-  const [title,setTitle] = useState("");
+  const [title, setTitle] = useState("");
   const [dateTime, setDateTime] = useState(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -52,7 +52,7 @@ export default function RegisterCase() {
   const [description, setDescription] = useState("");
   const [caseNumber, setCaseNumber] = useState("");
   const [submissionStatus, setSubmissionStatus] = useState({
-    status: null, 
+    status: null,
     message: "",
   });
 
@@ -62,6 +62,10 @@ export default function RegisterCase() {
     script.async = true;
     script.defer = true;
     script.onload = () => setMapLoaded(true);
+    script.onerror = () => {
+      console.error("Failed to load Google Maps script");
+      setMapLoaded(false);
+    };
     document.head.appendChild(script);
 
     if (navigator.geolocation) {
@@ -75,7 +79,7 @@ export default function RegisterCase() {
         },
         (error) => {
           console.error("Error getting location:", error);
-          setCoordinates({ lat: 40.7128, lng: -74.006 }); // New York as default
+          setCoordinates({ lat: 22.2587, lng: 71.1924 });
         }
       );
     }
@@ -224,206 +228,62 @@ export default function RegisterCase() {
 
   const uploadFile = async (file) => {
     if (!file) return null;
-  
-    // First analyze the image
-    const analysisResult = await analyzeImageWithSightEngine(file);
-    
-    if (!analysisResult.success) {
-      throw new Error(`Image analysis failed: ${analysisResult.error}`);
-    }
-  
-    // If inappropriate content detected, you might want to handle it
-    if (analysisResult.is_detected) {
-      console.warn('Inappropriate content detected in image', analysisResult.data);
-      // You could choose to reject the upload here if needed
-      // throw new Error('Upload rejected due to inappropriate content');
-    }
-  
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Math.random()
+      .toString(36)
+      .substring(2, 15)}_${Date.now()}.${fileExt}`;
     const filePath = `evidence/${fileName}`;
-  
+
     const { data, error } = await supabase.storage
-      .from('incident-evidence')
+      .from("incident-evidence")
       .upload(filePath, file);
-  
+
     if (error) {
-      console.error('Error uploading file:', error);
+      console.error("Error uploading file:", error);
       throw new Error(`Error uploading file: ${error.message}`);
     }
-  
+
     const { data: urlData } = supabase.storage
-      .from('incident-evidence')
+      .from("incident-evidence")
       .getPublicUrl(filePath);
-  
-    return {
-      url: urlData.publicUrl,
-      analysis: analysisResult.data,
-      is_detected: analysisResult.is_detected
-    };
+
+    return urlData.publicUrl;
   };
 
-  const analyzeImageWithSightEngine = async (file) => {
+  const submitToSupabase = async (formData) => {
     try {
-      const formData = new FormData();
-      formData.append('media', file);
-      formData.append('models', 'nudity-2.1,weapon,alcohol,recreational_drug,medical,offensive-2.0,gore-2.0,violence,self-harm,gambling');
-      formData.append('api_user', '1043833218');
-      formData.append('api_secret', 'CfztvLVuKWqyid9XwGQbAz5yiPdwfbmg');
-  
-      const response = await axios.post('https://api.sightengine.com/1.0/check.json', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-  
-      // Check if any concerning content was detected above threshold
-      const isDetected = checkForConcerningContent(response.data);
-      
-      return {
-        success: true,
-        data: response.data,
-        is_detected: isDetected,
-        flagged_categories: getFlaggedCategories(response.data)
-      };
-    } catch (error) {
-      console.error('Error analyzing image:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message
-      };
-    }
-  };
-  
-  // Helper function to check for concerning content
-  const checkForConcerningContent = (analysisData) => {
-    const thresholds = {
-      nudity: 0.7,
-      weapon: 0.7,
-      alcohol: 0.8,
-      drugs: 0.8,
-      offensive: 0.7,
-      violence: 0.7,
-      self_harm: 0.9,
-      gambling: 0.8
-    };
-  
-    return Object.entries(thresholds).some(([category, threshold]) => {
-      const score = getCategoryScore(analysisData, category);
-      return score >= threshold;
-    });
-  };
-  
-  // Helper function to extract scores from different response structures
-  const getCategoryScore = (data, category) => {
-    if (data[category] === undefined) return 0;
-    
-    // Handle different response structures
-    if (typeof data[category] === 'number') {
-      return data[category];
-    } else if (typeof data[category] === 'object') {
-      // For nested structures like nudity or offensive
-      if (category === 'nudity') {
-        return 1 - data[category].safe; // Higher risk if safe score is low
+      let fileUrl = null;
+      if (selectedFile) {
+        fileUrl = await uploadFile(selectedFile);
       }
-      return data[category].prob || 0;
-    }
-    return 0;
-  };
-  
-  // Get list of flagged categories
-  const getFlaggedCategories = (analysisData) => {
-    const thresholds = {
-      nudity: 0.5,
-      weapon: 0.5,
-      alcohol: 0.5,
-      drugs: 0.5,
-      offensive: 0.5,
-      violence: 0.5,
-      self_harm: 0.5,
-      gambling: 0.5
-    };
-  
-    return Object.entries(thresholds)
-      .filter(([category, threshold]) => {
-        const score = getCategoryScore(analysisData, category);
-        return score >= threshold;
-      })
-      .map(([category]) => category);
-  };
 
-  
-const submitToSupabase = async (formData) => {
-  try {
-    // Initialize variables to store file data
-    let fileAnalysis = null;
-    let fileIsDetected = false;
-    let fileFlaggedCategories = null;
-    let fileUrl = null;
-
-    // Only process file if one was selected
-    if (selectedFile) {
-      const uploadResult = await uploadFile(selectedFile);
-      if (uploadResult) {
-        fileAnalysis = uploadResult.analysis;
-        fileIsDetected = uploadResult.is_detected;
-        fileFlaggedCategories = uploadResult.flagged_categories;
-        fileUrl = uploadResult.url;
-      }
-    }
-
-    // Submit the main report data
-    const { data: reportData, error } = await supabase
-      .from("reports")
-      .insert([
-        {
-          crime_type: formData.crimeType.toLowerCase(),
-          title: formData.title,
-          address: formData.address,
-          latitude: formData.coordinates.lat,
-          longitude: formData.coordinates.lng,
-          description: formData.description,
-          severity: "low",
-          status: "pending",
-          reported_at: formData.dateTime,
-          updated_at: new Date().toISOString(),
-          media_analysis: fileAnalysis,
-          is_detected: fileIsDetected,
-          flagged_categories: fileFlaggedCategories
-        },
-      ])
-      .select();
-
-    if (error) throw error;
-
-    // If we have a file and the report was created successfully
-    if (fileUrl && reportData && reportData.length > 0) {
-      const reportId = reportData[0].id;
-      const fileType = selectedFile.type.split('/')[0];
-      
-      const { error: mediaError } = await supabase
-        .from('report_media')
+      const { data, error } = await supabase
+        .from("reports")
         .insert([
           {
-            report_id: reportId,
-            file_url: fileUrl,
-            file_type: fileType,
-            uploaded_at: new Date().toISOString(),
-            analysis_result: fileAnalysis,
-            is_detected: fileIsDetected,
-            flagged_categories: fileFlaggedCategories
-          }
-        ]);
+            crime_type: formData.crimeType.toLowerCase(),
+            title: formData.title,
+            address: formData.address,
+            latitude: formData.coordinates.lat,
+            longitude: formData.coordinates.lng,
+            description: formData.description,
+            severity: formData.severity.toLowerCase(),
+            status: "pending",
+            reported_at: formData.dateTime,
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select();
 
-      if (mediaError) throw mediaError;
+      if (error) throw error;
+
+      return { success: true, data };
+    } catch (error) {
+      console.error("Error submitting to Supabase:", error);
+      return { success: false, error: error.message };
     }
-
-    return { success: true, data: reportData };
-  } catch (error) {
-    console.error("Error submitting to Supabase:", error);
-    return { success: false, error: error.message };
-  }
-};
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -435,7 +295,8 @@ const submitToSupabase = async (formData) => {
       !dateTime ||
       !description ||
       !coordinates.lat ||
-      !coordinates.lng
+      !coordinates.lng ||
+      !severity
     ) {
       setIsSubmitting(false);
       setSubmissionStatus({
@@ -449,6 +310,7 @@ const submitToSupabase = async (formData) => {
     const formData = {
       isAnonymous,
       crimeType,
+      severity,
       title,
       dateTime,
       coordinates,
@@ -468,6 +330,7 @@ const submitToSupabase = async (formData) => {
 
         setTimeout(() => {
           setCrimeType("");
+          setSeverity("");
           setDateTime("");
           setDescription("");
           setCaseNumber("");
@@ -580,7 +443,7 @@ const submitToSupabase = async (formData) => {
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Title <span className="text-red-500">*</span>
                   </label>
@@ -631,7 +494,39 @@ const submitToSupabase = async (formData) => {
                     </div>
                   </div>
                 </div>
-
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Severity <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full pl-4 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white"
+                      value={severity}
+                      onChange={(e) => setSeverity(e.target.value)}
+                      required
+                    >
+                      <option value="">Select severity</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <svg
+                        className="w-5 h-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date & Time <span className="text-red-500">*</span>

@@ -23,7 +23,7 @@ function App() {
   return (
     <LoadScript {...GOOGLE_MAPS_CONFIG}>
       <AuthProvider>
-      <GoogleTranslate />
+        <GoogleTranslate />
 
         <Router>
           <Routes>

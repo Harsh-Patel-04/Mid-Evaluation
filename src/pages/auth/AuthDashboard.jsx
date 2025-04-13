@@ -469,7 +469,7 @@ export default function AuthDashboard() {
               </motion.section>
             </div>
             <AuthCrimeCharts />
-           
+            {/* Crime Analytics */}
           </div>
         )}
       </main>

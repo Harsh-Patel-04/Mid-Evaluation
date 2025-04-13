@@ -98,19 +98,36 @@ const AuthCrimeCharts = () => {
           <label className="block text-sm font-semibold text-black mb-2">
             CRIME TYPE
           </label>
-          <select
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg 
-              bg-white text-gray-800 font-medium shadow-sm"
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-          >
-            <option value="all">All Types</option>
-            <option value="theft">Theft</option>
-            <option value="assault">Assault</option>
-            <option value="vandalism">Vandalism</option>
-            <option value="fraud">Fraud</option>
-            <option value="other">Other</option>
-          </select>
+          <div className="relative">
+            <select
+              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg 
+              bg-white outline-none appearance-none text-gray-800 font-medium shadow-sm"
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+            >
+              <option value="all">All Types</option>
+              <option value="theft">Theft</option>
+              <option value="assault">Assault</option>
+              <option value="vandalism">Vandalism</option>
+              <option value="fraud">Fraud</option>
+              <option value="other">Other</option>
+            </select>
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+              <svg
+                className="w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
+          </div>
         </div>
 
         {/* Clear Filter Button - Full width */}
@@ -233,12 +250,12 @@ const AuthCrimeCharts = () => {
           {
             data: typeData.counts,
             backgroundColor: [
-              "skyblue", // Red
-              "darkblue", // Orange
-              "yellow", // Yellow
-              "lightgreen", // Green
-              "pink", // Blue
-              "#9333ea", // Purple
+              "skyblue",
+              "darkblue",
+              "yellow",
+              "lightgreen",
+              "pink",
+              "#9333ea",
             ],
             borderWidth: 2,
             borderColor: "#f3f4f6",
